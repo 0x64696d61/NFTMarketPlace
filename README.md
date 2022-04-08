@@ -7,7 +7,7 @@ npx hardhat run --network rinkeby scripts/deployNFTMarketPlace.ts
 ```
 
 MarketPlace tokens address:
-[0xa08bb194A2baF04637E89E8205AEea05226C17a4](https://rinkeby.etherscan.io/token/0xa08bb194A2baF04637E89E8205AEea05226C17a4
+[0xa08bb194A2baF04637E89E8205AEea05226C17a4](https://rinkeby.etherscan.io/address/0xa08bb194A2baF04637E89E8205AEea05226C17a4
 )
 
 My USDC Coin
