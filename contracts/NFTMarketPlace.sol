@@ -13,13 +13,23 @@ contract HFTMarketPlace is Ownable {
 
     struct Item {
         uint price;
+        address owner;
+    }
+    struct AuctionItem {
+        uint price;
         uint startTime;
+        uint bidsCounter;
         address lastBidderAddress;
         address owner;
-        uint bidsCounter;
     }
 
     mapping(uint => Item) public onSale;
+    mapping(uint => AuctionItem) public onAuction;
+
+    event newItem(uint256 tokenId, uint256 price);
+    event newBid(uint256 tokenId, uint256 price);
+    event newAuction(uint256 tokenId, uint256 minPrice);
+    event finishAuction(uint256 tokenId);
 
     constructor(address usdcTokenAddress) {
         _usdcToken = IERC20(usdcTokenAddress);
@@ -39,6 +49,7 @@ contract HFTMarketPlace is Ownable {
         nftToken.transferFrom(msg.sender, address(this), tokenId);
         onSale[tokenId].owner = msg.sender;
         onSale[tokenId].price = price;
+        emit newItem(tokenId, price);
     }
 
     function cancel(uint tokenId) external
@@ -61,41 +72,44 @@ contract HFTMarketPlace is Ownable {
     function listItemOnAuction(uint tokenId, uint minPrice) external
     {
         nftToken.transferFrom(msg.sender, address(this), tokenId);
-        onSale[tokenId].owner = msg.sender;
-        onSale[tokenId].price = minPrice;
-        onSale[tokenId].startTime = block.timestamp;
+        onAuction[tokenId].owner = msg.sender;
+        onAuction[tokenId].price = minPrice;
+        onAuction[tokenId].startTime = block.timestamp;
+        emit newAuction(tokenId, minPrice);
     }
 
 
     function makeBid(uint tokenId, uint price) external
     {
-        require(price > onSale[tokenId].price, "Please set price more");
+        require(price > onAuction[tokenId].price, "Please set price more");
 
         _usdcToken.transferFrom(msg.sender, address(this), price);
-        if (onSale[tokenId].bidsCounter > 0)
-            _usdcToken.transfer(onSale[tokenId].lastBidderAddress, onSale[tokenId].price);
-        onSale[tokenId].lastBidderAddress = msg.sender;
-        onSale[tokenId].price = price;
-        onSale[tokenId].bidsCounter += 1;
+        if (onAuction[tokenId].bidsCounter > 0)
+            _usdcToken.transfer(onAuction[tokenId].lastBidderAddress, onAuction[tokenId].price);
+        onAuction[tokenId].lastBidderAddress = msg.sender;
+        onAuction[tokenId].price = price;
+        onAuction[tokenId].bidsCounter += 1;
+        emit newBid(tokenId, price);
     }
 
     function finishAuction(uint tokenId) external
     {
-        require(block.timestamp >= onSale[tokenId].startTime + auctionFrozenTime, "It's too soon. Try later");
+        require(block.timestamp >= onAuction[tokenId].startTime + auctionFrozenTime, "It's too soon. Try later");
 
-        if (onSale[tokenId].bidsCounter > 1)
-            closeAuction(onSale[tokenId].lastBidderAddress, onSale[tokenId].owner, tokenId);
+        if (onAuction[tokenId].bidsCounter > 1)
+            closeAuction(onAuction[tokenId].lastBidderAddress, onAuction[tokenId].owner, tokenId);
         else
-            closeAuction(onSale[tokenId].owner, onSale[tokenId].lastBidderAddress, tokenId);
+            closeAuction(onAuction[tokenId].owner, onAuction[tokenId].lastBidderAddress, tokenId);
     }
 
     function closeAuction(address nftOwner, address usdcOwner, uint tokenId) private
     {
-        uint price = onSale[tokenId].price;
-        delete (onSale[tokenId]);
+        uint price = onAuction[tokenId].price;
+        delete (onAuction[tokenId]);
 
         nftToken.safeTransferFrom(address(this), nftOwner, tokenId);
         _usdcToken.transfer(usdcOwner, price);
+        emit finishAuction(tokenId);
     }
 
 }
